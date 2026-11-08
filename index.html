@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Milwaukee Night Parking Permission</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--fg:#111;--muted:#666;--border:#ccc;--accent:#1a56db;
+  --accent-hover:#1443b0;--card:#f7f7f7;--warn-bg:#fff7ed;--warn-fg:#92400e;
+  --warn2-bg:#fef2f2;--warn2-fg:#991b1b;--safe-bg:#f0fdf4;--safe-fg:#166534;--radius:10px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#111;--fg:#eee;--muted:#999;--border:#444;--accent:#60a5fa;
+    --accent-hover:#93bbfd;--card:#1a1a1a;--warn-bg:#451a03;--warn-fg:#fed7aa;
+    --warn2-bg:#450a0a;--warn2-fg:#fecaca;--safe-bg:#052e16;--safe-fg:#bbf7d0;
+  }
+}
+html{font-size:16px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--fg);padding:16px;max-width:480px;margin:0 auto;
+  line-height:1.5;min-height:100vh;
+}
+h1{font-size:1.35rem;margin-bottom:16px;text-align:center}
+h2{font-size:1.1rem;margin-bottom:12px}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);
+  font-size:16px;background:var(--bg);color:var(--fg);min-height:48px;
+  -webkit-appearance:none;appearance:none;
+}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
+input::placeholder{color:var(--muted)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+button{
+  width:100%;padding:14px;border:none;border-radius:var(--radius);font-size:1.05rem;
+  font-weight:700;cursor:pointer;min-height:48px;margin-top:16px;
+  background:var(--accent);color:#fff;
+}
+button:hover{background:var(--accent-hover)}
+button.secondary{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+button.secondary:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+button.danger{background:#dc2626}
+button.danger:hover{background:#b91c1c}
+.card{
+  background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;
+  border:1px solid var(--border);
+}
+.nights-row{display:flex;gap:8px;margin-top:8px}
+.nights-row button{flex:1;margin-top:0;padding:12px;font-size:1rem}
+.nights-row button.active{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-hover)}
+.dry-run{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.9rem}
+.dry-run input[type=checkbox]{width:auto;accent-color:var(--accent)}
+.warning,.safe-msg{
+  padding:12px;border-radius:var(--radius);margin-top:8px;font-size:.88rem;line-height:1.45;
+}
+.warning{background:var(--warn-bg);color:var(--warn-fg)}
+.warning2{background:var(--warn2-bg);color:var(--warn2-fg)}
+.safe-msg{background:var(--safe-bg);color:var(--safe-fg)}
+.hidden{display:none!important}
+#dryrun-output{
+  margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);font-family:"SF Mono",Monaco,Consolas,monospace;
+  font-size:.82rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;
+}
+.link-btn{
+  background:none;border:none;color:var(--accent);font-size:.9rem;cursor:pointer;
+  padding:8px 0;font-weight:600;min-height:auto;margin-top:8px;
+}
+.link-btn:hover{text-decoration:underline}
+.preset-btn{
+  background:var(--card);border:1.5px solid var(--border);color:var(--fg);text-align:left;
+  padding:16px;display:block;width:100%;min-height:48px;margin-top:0;
+}
+.preset-btn:hover{border-color:var(--accent)}
+.preset-address{font-size:1.05rem;font-weight:700;display:block}
+.preset-plate{font-size:.92rem;color:var(--muted);display:block;margin-top:2px}
+.preset-night-used{font-size:.82rem;color:var(--muted);display:block;margin-top:4px}
+.preset-delete-btn{
+  background:none;border:1.5px solid #dc2626;color:#dc2626;font-size:.85rem;
+  padding:10px 12px;min-height:auto;margin-top:8px;width:100%;cursor:pointer;
+  border-radius:var(--radius);font-weight:600;
+}
+.preset-delete-btn:hover{background:#dc2626;color:#fff}
+.import-note{
+  padding:12px;border-radius:var(--radius);margin-bottom:12px;font-size:.9rem;
+  background:var(--safe-bg);color:var(--safe-fg);text-align:center;
+}
+footer{text-align:center;margin-top:24px;font-size:.78rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- EMAIL SCREEN (first run only) -->
+<div id="email-screen" class="hidden">
+  <h1>Night Parking Permission</h1>
+  <h2>Your email</h2>
+  <p style="margin-bottom:12px;color:var(--muted);font-size:.92rem">The city form requires an email address. We store it locally only.</p>
+  <form id="email-form" novalidate>
+    <label for="email-input">Email</label>
+    <input id="email-input" type="email" inputmode="email" maxlength="128" placeholder="you@example.com" required>
+    <button type="submit">Continue</button>
+  </form>
+</div>
+
+<!-- HOME SCREEN -->
+<div id="home-screen" class="hidden">
+  <h1>Night Parking Permission</h1>
+
+  <div class="card">
+    <label>Nights</label>
+    <div class="nights-row" id="nights-row">
+      <button type="button" data-nights="1">1</button>
+      <button type="button" data-nights="2">2</button>
+      <button type="button" data-nights="3">3</button>
+    </div>
+  </div>
+
+  <div id="preset-list"></div>
+  <div id="empty-msg" class="hidden" style="text-align:center;padding:24px 0;color:var(--muted)">
+    No buttons yet. Tap <strong>Add a button</strong>.
+  </div>
+
+  <button id="add-btn" class="secondary">+ Add a button</button>
+
+  <button id="delete-btn" class="secondary danger" style="border-color:#dc2626;color:#dc2626">Delete buttons</button>
+
+  <button id="change-email-btn" class="link-btn hidden" style="text-align:center;width:100%">Change email</button>
+
+  <div class="dry-run">
+    <input type="checkbox" id="dryrun-cb">
+    <label for="dryrun-cb" style="display:inline;margin:0">Dry-run (preview fields)</label>
+  </div>
+  <div id="dryrun-output" class="hidden"></div>
+
+  <div id="warnings"></div>
+
+  <footer>For 2&ndash;6 AM. Max 3 nights in 30 days. Request window: ~7 AM to 1 AM.</footer>
+</div>
+
+<!-- ADD BUTTON SCREEN -->
+<div id="add-screen" class="hidden">
+  <h1>Add a Button</h1>
+  <form id="preset-form" novalidate>
+    <label for="laddr">House Number (1 to 5 digits)</label>
+    <input id="laddr" type="text" inputmode="numeric" maxlength="5" placeholder="e.g. 1234" required>
+
+    <label for="sdir">Street Direction</label>
+    <select id="sdir" required><option value="">&mdash; select &mdash;</option></select>
+
+    <label for="sname">Street Name</label>
+    <input id="sname" type="text" list="sname-list" placeholder="Type or pick a street" required>
+    <datalist id="sname-list"></datalist>
+
+    <label for="stype">Street Suffix</label>
+    <select id="stype" required><option value="">&mdash; select &mdash;</option></select>
+
+    <label for="state">License Plate State</label>
+    <select id="state"><option value="">&mdash; select &mdash;</option></select>
+
+    <label for="tagID">License Plate (letters + digits, max 10)</label>
+    <input id="tagID" type="text" inputmode="text" maxlength="10" placeholder="e.g. ABC1234" required>
+
+    <label for="vtype">Vehicle Type</label>
+    <select id="vtype"><option value="PC">PC &ndash; Passenger Car</option></select>
+
+    <button type="submit">Save Button</button>
+    <button type="button" id="cancel-add-btn" class="secondary">Cancel</button>
+  </form>
+</div>
+
+<script src="form_options.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ── helpers ─────────────────────────────────────────── */
+  var LS_KEY = "nightParkingV2";
+
+  function saveLS(obj){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(obj)); } catch(e){}
+  }
+  function loadLS(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ return null; }
+  }
+
+  const q = s => document.querySelector(s);
+  const qa = s => document.querySelectorAll(s);
+
+  /* ── populate dropdowns from FORM_OPTIONS ────────────── */
+  function populate(sel, options, defaultLabel){
+    var s = q(sel);
+    if(!s) return;
+    var first = document.createElement("option");
+    first.value = "";
+    first.textContent = defaultLabel || "\u2014 select \u2014";
+    s.appendChild(first);
+    for(var i=0;i<options.length;i++){
+      var o = document.createElement("option");
+      o.value = options[i].v;
+      o.textContent = options[i].t;
+      s.appendChild(o);
+    }
+  }
+
+  function buildDatalist(){
+    var dl = q("#sname-list");
+    if(!dl) return;
+    for(var i=0;i<FORM_OPTIONS.sname.length;i++){
+      var opt = document.createElement("option");
+      opt.value = FORM_OPTIONS.sname[i].v;
+      dl.appendChild(opt);
+    }
+  }
+
+  function streetIsKnown(raw){
+    if(!raw) return false;
+    var up = raw.trim().toUpperCase();
+    for(var i=0;i<FORM_OPTIONS.sname.length;i++){
+      if(FORM_OPTIONS.sname[i].v === up) return true;
+    }
+    return false;
+  }
+
+  /* ── default state to WI ─────────────────────────────── */
+  function setDefaultState(sel){
+    var s = q(sel);
+    for(var i=0;i<s.options.length;i++){
+      if(s.options[i].value === "WI"){ s.selectedIndex = i; break; }
+    }
+  }
+
+  /* ── data helpers ────────────────────────────────────── */
+  function loadData(){
+    var d = loadLS();
+    if(!d){ d = {email:null, presets:[], history:[]}; }
+    if(!d.presets) d.presets = [];
+    if(!d.history) d.history = [];
+    return d;
+  }
+
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  /* ── validation (same as old settings) ───────────────── */
+  function validatePreset(p){
+    if(!/^\d{1,5}$/.test(p.laddr)) return "House number must be 1 to 5 digits.";
+    if(!p.sdir) return "Select a street direction.";
+    if(!p.sname) return "Enter a street name.";
+    if(!streetIsKnown(p.sname)) return "Street name not found in the official list.";
+    if(!p.stype) return "Select a street suffix.";
+    if(!/^[A-Z0-9]{1,10}$/i.test(p.tagID)) return "License plate must be 1 to 10 letters/digits.";
+    return null;
+  }
+
+  function presetKey(p){ return p.laddr + "|" + p.sname + "|" + p.tagID.toUpperCase(); }
+
+  /* ── screen management ───────────────────────────────── */
+  var emailScreen = q("#email-screen");
+  var homeScreen = q("#home-screen");
+  var addScreen = q("#add-screen");
+
+  function showScreen(s){
+    emailScreen.classList.add("hidden");
+    homeScreen.classList.add("hidden");
+    addScreen.classList.add("hidden");
+    s.classList.remove("hidden");
+  }
+
+  /* ── init dropdowns ──────────────────────────────────── */
+  populate("#sdir", FORM_OPTIONS.sdir);
+  populate("#stype", FORM_OPTIONS.stype);
+  populate("#state", FORM_OPTIONS.state, "\u2014 default WI \u2014");
+  populate("#vtype", FORM_OPTIONS.vtype);
+  buildDatalist();
+  /* Fix 5: removed setDefaultState("#sdir") */
+  setDefaultState("#state");
+
+  /* ── state ───────────────────────────────────────────── */
+  var data = loadData();
+  var selectedNights = 1;
+  var deleteMode = false;
+
+  /* ── Fix 1: makePresetButton factory (no var capture bug) ── */
+  function makePresetButton(preset){
+    const addr = preset.laddr + " " + preset.sdir + " " + preset.sname + " " + preset.stype;
+    const plate = preset.state + " " + preset.tagID.toUpperCase();
+
+    // Fix 3: count nights for this plate only (match on tag field)
+    const now = new Date();
+    const thirtyAgo = now.getTime() - 30*86400000;
+    const plateTag = preset.tagID.toUpperCase();
+    let plateNights = 0;
+    for(var h=0; h<data.history.length; h++){
+      const entry = data.history[h];
+      /* ignore old entries without a tag */
+      if(!entry.tag) continue;
+      const hd = new Date(entry.date).getTime();
+      if(hd >= thirtyAgo && entry.tag === plateTag){
+        plateNights += (entry.nights || 0);
+      }
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "preset-btn";
+    btn.setAttribute("data-id", preset.id);
+
+    const addrEl = document.createElement("span");
+    addrEl.className = "preset-address";
+    addrEl.textContent = addr;
+
+    const plateEl = document.createElement("span");
+    plateEl.className = "preset-plate";
+    plateEl.textContent = plate;
+
+    btn.appendChild(addrEl);
+    btn.appendChild(plateEl);
+
+    /* night usage info */
+    if(plateNights > 0){
+      const nightUsed = document.createElement("span");
+      nightUsed.className = "preset-night-used";
+      nightUsed.textContent = plateNights + " of 3 nights used (30 days)";
+      btn.appendChild(nightUsed);
+
+      if(plateNights + selectedNights > 3){
+        const warn = document.createElement("div");
+        warn.className = "warning2";
+        warn.style.cssText = "font-size:.82rem;margin-top:4px;padding:6px 8px;border-radius:6px";
+        warn.textContent = "Warning: " + plateNights + " nights used + " + selectedNights + " chosen exceeds 3-night limit.";
+        btn.appendChild(warn);
+      }
+    }
+
+    /* delete button in delete mode */
+    if(deleteMode){
+      const delBtn = document.createElement("button");
+      delBtn.className = "preset-delete-btn";
+      delBtn.textContent = "Delete this button";
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(confirm("Delete this button (" + addr + ")?")){
+          data.presets = data.presets.filter(function(pp){ return pp.id !== preset.id; });
+          saveLS(data);
+          renderPresetButtons();
+        }
+      });
+      btn.appendChild(delBtn);
+    }
+
+    /* main tap -> confirm + submit */
+    btn.addEventListener("click", function(){
+      const summary = addr + ", " + plate + ", " + selectedNights + " night(s)";
+      if(!confirm("Submit request for:\n" + summary)) return;
+
+      if(q("#dryrun-cb").checked){
+        showDryRunFor(preset);
+        return;
+      }
+
+      /* save history BEFORE submit (Fix 3: include tag) */
+      data.history.push({date: new Date().toISOString(), nights: selectedNights, tag: plateTag});
+      saveLS(data);
+
+      submitForm(preset);
+    });
+
+    return btn;
+  }
+
+  function renderPresetButtons(){
+    var list = q("#preset-list");
+    var empty = q("#empty-msg");
+    list.innerHTML = "";
+
+    /* Fix 2: never hide #add-btn based on preset count */
+    if(data.presets.length === 0){
+      empty.classList.remove("hidden");
+    } else {
+      empty.classList.add("hidden");
+    }
+
+    for(var p=0; p<data.presets.length; p++){
+      const preset = data.presets[p];
+      list.appendChild(makePresetButton(preset));
+    }
+  }
+
+  /* ── build form fields ───────────────────────────────── */
+  function buildFields(preset){
+    return [
+      {name:"laddr", value: preset.laddr},
+      {name:"sdir", value: preset.sdir},
+      {name:"sname", value: preset.sname},
+      {name:"stype", value: preset.stype},
+      {name:"state", value: preset.state},
+      {name:"tagID", value: preset.tagID.toUpperCase()},
+      {name:"vtype", value: preset.vtype},
+      {name:"numdays", value: String(selectedNights)},
+      {name:"emailaddr", value: data.email || ""},
+      {name:"embed", value:"Y"},
+      {name:"Submit", value:"Submit"}
+    ];
+  }
+
+  function submitForm(preset){
+    var fields = buildFields(preset);
+    var form = document.createElement("form");
+    form.method = "POST";
+    form.action = "https://itmdapps.milwaukee.gov/DpwServletsPublic/np_permission";
+    for(var i=0;i<fields.length;i++){
+      var inp = document.createElement("input");
+      inp.type = "hidden";
+      inp.name = fields[i].name;
+      inp.value = fields[i].value;
+      form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  /* ── dry-run ─────────────────────────────────────────── */
+  function showDryRunFor(preset){
+    var fields = buildFields(preset);
+    var out = q("#dryrun-output");
+    var lines = [];
+    for(var k=0;k<fields.length;k++){
+      lines.push(fields[k].name + "=" + fields[k].value);
+    }
+    out.textContent = lines.join("\n");
+    out.classList.remove("hidden");
+  }
+
+  /* ── warnings ────────────────────────────────────────── */
+  function showWarnings(){
+    var box = q("#warnings");
+    box.innerHTML = "";
+
+    /* time window: warn only when Chicago hour is 1..6 */
+    try{
+      var fmt = new Intl.DateTimeFormat("en-US",{hour:"numeric",hourCycle:"h23",timeZone:"America/Chicago"});
+      var chHour = parseInt(fmt.format(new Date()));
+      if(chHour >= 1 && chHour < 7){
+        box.innerHTML += '<div class="warning">It is currently ' + fmt.format(new Date()) + ' Chicago time. The request window is approximately 7 AM to 1 AM.</div>';
+      }
+    } catch(e){}
+  }
+
+  /* ── render home ─────────────────────────────────────── */
+  function renderHome(){
+    /* nights picker */
+    var btns = qa("#nights-row button");
+    for(var i=0;i<btns.length;i++){
+      btns[i].classList.remove("active");
+      if(parseInt(btns[i].dataset.nights) === selectedNights) btns[i].classList.add("active");
+    }
+
+    /* Fix 4: show change-email when delete mode is ON or no presets */
+    var cem = q("#change-email-btn");
+    if(deleteMode || data.presets.length === 0){
+      cem.classList.remove("hidden");
+    } else {
+      cem.classList.add("hidden");
+    }
+
+    renderPresetButtons();
+    showWarnings();
+  }
+
+  /* ── preset form (add button screen) ─────────────────── */
+  q("#preset-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var laddr = q("#laddr").value.trim();
+    var sdir = q("#sdir").value;
+    var sname = q("#sname").value.trim();
+    var stype = q("#stype").value;
+    var state = q("#state").value || "WI";
+    var tagID = q("#tagID").value.trim().toUpperCase();
+    var vtype = q("#vtype").value || "PC";
+
+    var p = {laddr:laddr, sdir:sdir, sname:sname.toUpperCase(), stype:stype,
+             state:state, tagID:tagID.toUpperCase(), vtype:vtype};
+    var err = validatePreset(p);
+    if(err){ alert(err); return; }
+
+    p.id = uid();
+    data.presets.push(p);
+    saveLS(data);
+
+    /* reset form */
+    q("#laddr").value = "";
+    q("#sname").value = "";
+    q("#tagID").value = "";
+    setDefaultState("#state");
+
+    showScreen(homeScreen);
+    renderHome();
+  });
+
+  /* ── event wiring ────────────────────────────────────── */
+
+  /* nights picker */
+  qa("#nights-row button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      qa("#nights-row button").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      selectedNights = parseInt(btn.dataset.nights);
+      renderPresetButtons();
+      showWarnings();
+    });
+  });
+
+  /* add button */
+  q("#add-btn").addEventListener("click", function(){
+    showScreen(addScreen);
+  });
+
+  /* cancel add */
+  q("#cancel-add-btn").addEventListener("click", function(){
+    showScreen(homeScreen);
+    renderHome();
+  });
+
+  /* delete mode toggle */
+  q("#delete-btn").addEventListener("click", function(){
+    deleteMode = !deleteMode;
+    if(deleteMode){
+      q("#delete-btn").textContent = "Done deleting";
+      q("#add-btn").classList.add("hidden");
+    } else {
+      q("#delete-btn").textContent = "Delete buttons";
+      q("#add-btn").classList.remove("hidden");
+    }
+    renderHome();
+  });
+
+  /* change email */
+  q("#change-email-btn").addEventListener("click", function(){
+    q("#email-input").value = data.email || "";
+    showScreen(emailScreen);
+  });
+
+  /* dry-run checkbox */
+  q("#dryrun-cb").addEventListener("change", function(){
+    if(!this.checked) q("#dryrun-output").classList.add("hidden");
+  });
+
+  /* email form */
+  q("#email-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var email = q("#email-input").value.trim();
+    if(!email || !email.includes("@")){ alert("Enter a valid email address."); return; }
+    data.email = email;
+    saveLS(data);
+    showScreen(homeScreen);
+    renderHome();
+  });
+
+  /* ── util ────────────────────────────────────────────── */
+  function esc(s){
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  /* ── Fix 5: import normalization helper ──────────────── */
+  function normalizeImportPreset(pp){
+    pp.sdir = (pp.sdir || "").trim().toUpperCase();
+    pp.sname = (pp.sname || "").trim().toUpperCase();
+    pp.stype = (pp.stype || "").trim().toUpperCase();
+    pp.state = (pp.state || "").trim().toUpperCase();
+    pp.tagID = (pp.tagID || "").replace(/\s/g, "").toUpperCase();
+    pp.vtype = pp.vtype || "PC";
+    /* validate state is in FORM_OPTIONS */
+    var stateOk = false;
+    for(var i=0;i<FORM_OPTIONS.state.length;i++){ if(FORM_OPTIONS.state[i].v === pp.state){ stateOk = true; break; } }
+    if(!stateOk) return null;
+    /* validate vtype is in FORM_OPTIONS */
+    var vtypeOk = false;
+    for(var i=0;i<FORM_OPTIONS.vtype.length;i++){ if(FORM_OPTIONS.vtype[i].v === pp.vtype){ vtypeOk = true; break; } }
+    if(!vtypeOk) return null;
+    return pp;
+  }
+
+  /* ── init ────────────────────────────────────────────── */
+  /* Step 2: import from hash */
+  var hash = location.hash;
+  if(hash && hash.indexOf("#import=") === 0){
+    try{
+      var b64 = decodeURIComponent(hash.slice("#import=".length));
+      var imp = JSON.parse(atob(b64));
+      if(imp && typeof imp === "object"){
+        var imported = 0;
+        var existingKeys = {};
+        for(var i=0;i<data.presets.length;i++){
+          existingKeys[presetKey(data.presets[i])] = true;
+        }
+        if(imp.presets && Array.isArray(imp.presets)){
+          for(var j=0;j<imp.presets.length;j++){
+            var pp = imp.presets[j];
+            /* Fix 5: normalize before validating */
+            var norm = normalizeImportPreset(pp);
+            if(!norm) continue;
+            var err = validatePreset(norm);
+            if(err) continue;
+            var key = presetKey(norm);
+            if(existingKeys[key]) continue;
+            norm.id = uid();
+            data.presets.push(norm);
+            existingKeys[key] = true;
+            imported++;
+          }
+        }
+        if(imp.email && !data.email){
+          data.email = imp.email;
+        }
+        saveLS(data);
+        /* remove hash */
+        history.replaceState(null, "", location.pathname + location.search);
+        /* show note */
+        var note = document.createElement("div");
+        note.className = "import-note";
+        note.textContent = "Imported " + imported + " buttons.";
+        q("#home-screen").insertBefore(note, q("#home-screen").firstChild);
+      }
+    } catch(e){
+      /* import failed, proceed normally */
+    }
+  }
+
+  /* show appropriate screen */
+  if(!data.email){
+    showScreen(emailScreen);
+  } else {
+    showScreen(homeScreen);
+    renderHome();
+  }
+
+})();
+</script>
+</body>
+</html>
